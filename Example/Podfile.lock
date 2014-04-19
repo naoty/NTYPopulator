@@ -1,0 +1,20 @@
+PODS:
+  - NTYCSVTable (0.1.0)
+  - NTYPopulator (0.1.0):
+    - NTYCSVTable
+  - OCHamcrest (3.0.1)
+
+DEPENDENCIES:
+  - NTYPopulator (from `..`)
+  - OCHamcrest
+
+EXTERNAL SOURCES:
+  NTYPopulator:
+    :path: ..
+
+SPEC CHECKSUMS:
+  NTYCSVTable: e5e809ee600a6fbb232ecf6d801592776fa1b59a
+  NTYPopulator: 60474b9b3823d7905d8630d7f8702a9143c21c40
+  OCHamcrest: 782c52ae8c673e5d6060a65005cfd26d20d519ba
+
+COCOAPODS: 0.32.1
