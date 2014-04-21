@@ -25,3 +25,7 @@ pod "NTYPopulator"
 `-init` method initializes an instance with the URL of `Model.momd` and `$(CFBundleName).sqlite`. You can also specify these URLs by `-initWithModelURL:sqliteURL:`.
 
 `-run` method populates seed data at `seeds/*.csv` at the application resource bundle. The filename is used to look up an entity name. For example, seed data at `seeds/user.csv` is populated into `User` entity. You can also specify the URL of seed data by `-runWithSeedFileURL:`.
+
+### Efficiency
+
+The populator stores the modification date of each seed files on `NSUserDefaults`. It checks whether each seed files have changes, and then populates only data on changed seed files.

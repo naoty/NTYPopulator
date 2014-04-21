@@ -17,6 +17,8 @@
 
 @implementation NTYPopulator
 
+NSString * const kNTYPopulatorUserDefaultsKey = @"NTYPopulatorSeedFileModificationDates";
+
 - (instancetype)init
 {
     NSBundle *bundle = [NSBundle mainBundle];
@@ -31,12 +33,8 @@
 {
     self = [super init];
     if (self) {
-        NSManagedObjectModel *managedObjectModel = [[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL];
-        NSPersistentStoreCoordinator *persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:managedObjectModel];
-        [persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:sqliteURL options:nil error:nil];
-        
-        self.managedObjectContext = [NSManagedObjectContext new];
-        self.managedObjectContext.persistentStoreCoordinator = persistentStoreCoordinator;
+        [self setUpManagedObjectContextWithModelURL:modelURL sqliteURL:sqliteURL];
+        [self setUpUserDefaults];
     }
     return self;
 }
@@ -45,7 +43,9 @@
 {
     NSArray *csvURLs = [[NSBundle mainBundle] URLsForResourcesWithExtension:@"csv" subdirectory:@"seeds"];
     for (NSURL *csvURL in csvURLs) {
-        [self runWithSeedFileURL:csvURL];
+        if ([self checkUpdateOnSeedFileOfURL:csvURL]) {
+            [self runWithSeedFileURL:csvURL];
+        }
     }
 }
 
@@ -65,11 +65,55 @@
     [self.managedObjectContext save:nil];
 }
 
+- (void)dealloc
+{
+    [[NSUserDefaults standardUserDefaults] synchronize];
+}
+
 #pragma mark - Private methods
 
 - (NSURL *)applicationDocumentDirectoryURL
 {
     return [[[NSFileManager defaultManager] URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask] lastObject];
+}
+
+- (void)setUpManagedObjectContextWithModelURL:(NSURL *)modelURL sqliteURL:(NSURL *)sqliteURL
+{
+    NSManagedObjectModel *managedObjectModel = [[NSManagedObjectModel alloc] initWithContentsOfURL:modelURL];
+    NSPersistentStoreCoordinator *persistentStoreCoordinator = [[NSPersistentStoreCoordinator alloc] initWithManagedObjectModel:managedObjectModel];
+    [persistentStoreCoordinator addPersistentStoreWithType:NSSQLiteStoreType configuration:nil URL:sqliteURL options:nil error:nil];
+    
+    self.managedObjectContext = [NSManagedObjectContext new];
+    self.managedObjectContext.persistentStoreCoordinator = persistentStoreCoordinator;
+}
+
+- (void)setUpUserDefaults
+{
+    NSDictionary *defaults = @{kNTYPopulatorUserDefaultsKey: @{}};
+    [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
+}
+
+- (BOOL)checkUpdateOnSeedFileOfURL:(NSURL *)seedFileURL
+{
+    NSDate *currentModificationDate;
+    NSError *error;
+    [seedFileURL getResourceValue:&currentModificationDate forKey:NSURLContentModificationDateKey error:&error];
+    
+    if (currentModificationDate == nil || error) {
+        return YES;
+    }
+    
+    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    NSMutableDictionary *seedFileModificationDates = [[userDefaults dictionaryForKey:kNTYPopulatorUserDefaultsKey] mutableCopy];
+    NSDate *modificationDate = seedFileModificationDates[seedFileURL.absoluteString];
+    
+    if (modificationDate == nil || ![modificationDate isEqualToDate:currentModificationDate]) {
+        seedFileModificationDates[seedFileURL.absoluteString] = currentModificationDate;
+        [userDefaults setObject:seedFileModificationDates forKey:kNTYPopulatorUserDefaultsKey];
+        return YES;
+    } else {
+        return NO;
+    }
 }
 
 - (void)deleteAllObjectsForEntityForName:(NSString *)entityName
