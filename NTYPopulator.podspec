@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = "NTYPopulator"
-  s.version          = "0.1.0"
+  s.version          = "0.1.1"
   s.summary          = "A seed data populator for Core Data"
   s.description      = <<-DESC
                        NTYPopulator is a seed data populator for Core Data.
