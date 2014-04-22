@@ -1,6 +1,6 @@
 platform :ios, "7.0"
 
-pod "NTYPopulator", path: ".."
+pod "NTYPopulator", path: "../NTYPopulator.podspec"
 
 target "NTYPopulatorDemoTests" do
   pod "OCHamcrest"

@@ -43,7 +43,13 @@
                             <outlet property="delegate" destination="cDH-vW-vRK" id="1FP-R0-gz9"/>
                         </connections>
                     </tableView>
-                    <navigationItem key="navigationItem" title="NTYPopulatorDemo" id="6xe-OB-iez"/>
+                    <navigationItem key="navigationItem" title="NTYPopulatorDemo" id="6xe-OB-iez">
+                        <barButtonItem key="rightBarButtonItem" systemItem="add" id="6ec-iO-Zhs">
+                            <connections>
+                                <action selector="insertNewObject:" destination="cDH-vW-vRK" id="XJT-wK-2J7"/>
+                            </connections>
+                        </barButtonItem>
+                    </navigationItem>
                 </tableViewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="rG4-uk-GOd" userLabel="First Responder" sceneMemberID="firstResponder"/>
             </objects>

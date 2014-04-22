@@ -29,3 +29,16 @@ pod "NTYPopulator"
 ### Efficiency
 
 The populator stores the modification date of each seed files on `NSUserDefaults`. It checks whether each seed files have changes, and then populates only data on changed seed files.
+
+### Safety
+
+By default, when the populator populates data, it will **delete all data and insert again**. So, if your application inserts new data after populating seed data, new data will be deleted when populating.
+
+In order to populate or delete only updated data, you need to add a special column named `seed_id`. The values of the column must be unique. The populator checks `seed_id` to update, insert or delete data.
+
+```csv
+seed_id,name,age
+1,Alice,18
+2,Bob,19
+3,Charlie,20
+```

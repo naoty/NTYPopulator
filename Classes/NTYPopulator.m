@@ -9,6 +9,7 @@
 #import <CoreData/CoreData.h>
 #import "NTYPopulator.h"
 #import "NTYCSVTable.h"
+#import "NSArray+NTYDifference.h"
 
 @interface NTYPopulator ()
 @property (nonatomic) NSManagedObjectContext *managedObjectContext;
@@ -17,7 +18,8 @@
 
 @implementation NTYPopulator
 
-NSString * const kNTYPopulatorUserDefaultsKey = @"NTYPopulatorSeedFileModificationDates";
+NSString * const kNTYPopulatorSeedFileModificationDatesKey = @"NTYPopulatorSeedFileModificationDates";
+NSString * const kNTYPopulatorSeedIDsKey = @"NTYPopulatorSeedIDs";
 
 - (instancetype)init
 {
@@ -52,17 +54,13 @@ NSString * const kNTYPopulatorUserDefaultsKey = @"NTYPopulatorSeedFileModificati
 - (void)runWithSeedFileURL:(NSURL *)seedFileURL
 {
     NSString *entityName = [[[seedFileURL lastPathComponent] stringByDeletingPathExtension] capitalizedString];
-    
-    [self deleteAllObjectsForEntityForName:entityName];
-    
     NTYCSVTable *table = [[NTYCSVTable alloc] initWithContentsOfURL:seedFileURL];
-    for (NSDictionary *row in table.rows) {
-        NSManagedObject *object = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:self.managedObjectContext];
-        for (NSString *header in table.headers) {
-            [object setValue:row[header] forKey:header];
-        }
+    
+    if ([table.headers containsObject:@"seed_id"]) {
+        [self safelyRunWithEntityName:entityName CSVTable:table];
+    } else {
+        [self unsafelyRunWithEntityName:entityName CSVTable:table];
     }
-    [self.managedObjectContext save:nil];
 }
 
 - (void)dealloc
@@ -89,7 +87,10 @@ NSString * const kNTYPopulatorUserDefaultsKey = @"NTYPopulatorSeedFileModificati
 
 - (void)setUpUserDefaults
 {
-    NSDictionary *defaults = @{kNTYPopulatorUserDefaultsKey: @{}};
+    NSDictionary *defaults = @{
+        kNTYPopulatorSeedFileModificationDatesKey: @{},
+        kNTYPopulatorSeedIDsKey: @[]
+    };
     [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
 }
 
@@ -104,16 +105,70 @@ NSString * const kNTYPopulatorUserDefaultsKey = @"NTYPopulatorSeedFileModificati
     }
     
     NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
-    NSMutableDictionary *seedFileModificationDates = [[userDefaults dictionaryForKey:kNTYPopulatorUserDefaultsKey] mutableCopy];
+    NSMutableDictionary *seedFileModificationDates = [[userDefaults dictionaryForKey:kNTYPopulatorSeedFileModificationDatesKey] mutableCopy];
     NSDate *modificationDate = seedFileModificationDates[seedFileURL.absoluteString];
     
     if (modificationDate == nil || ![modificationDate isEqualToDate:currentModificationDate]) {
         seedFileModificationDates[seedFileURL.absoluteString] = currentModificationDate;
-        [userDefaults setObject:seedFileModificationDates forKey:kNTYPopulatorUserDefaultsKey];
+        [userDefaults setObject:seedFileModificationDates forKey:kNTYPopulatorSeedFileModificationDatesKey];
         return YES;
     } else {
         return NO;
     }
+}
+
+- (void)safelyRunWithEntityName:(NSString *)entityName CSVTable:(NTYCSVTable *)table
+{
+    NSUserDefaults *userDefaults = [NSUserDefaults standardUserDefaults];
+    
+    NSArray *newSeedIDs = table.columns[@"seed_id"];
+    NSArray *oldSeedIDs = [userDefaults arrayForKey:kNTYPopulatorSeedIDsKey];
+    
+    NSArray *seedIDsToInsert = [newSeedIDs minusArray:oldSeedIDs];
+    for (NSNumber *seedID in seedIDsToInsert) {
+        NSManagedObject *object = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:self.managedObjectContext];
+        NSDictionary *row = [[table rowsOfValue:seedID forHeader:@"seed_id"] firstObject];
+        for (NSString *header in table.headers) {
+            [object setValue:row[header] forKeyPath:header];
+        }
+    }
+    
+    NSArray *seedIDsToDelete = [oldSeedIDs minusArray:newSeedIDs];
+    for (NSNumber *seedID in seedIDsToDelete) {
+        NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:entityName];
+        request.predicate = [NSPredicate predicateWithFormat:@"seed_id = %@", seedID];
+        NSManagedObject *object = [[self.managedObjectContext executeFetchRequest:request error:nil] firstObject];
+        [self.managedObjectContext deleteObject:object];
+    }
+    
+    NSArray *seedIDsToUpdate = [newSeedIDs intersectArray:oldSeedIDs];
+    for (NSNumber *seedID in seedIDsToUpdate) {
+        NSFetchRequest *request = [NSFetchRequest fetchRequestWithEntityName:entityName];
+        request.predicate = [NSPredicate predicateWithFormat:@"seed_id = %@", seedID];
+        NSManagedObject *object = [[self.managedObjectContext executeFetchRequest:request error:nil] firstObject];
+        NSDictionary *row = [[table rowsOfValue:seedID forHeader:@"seed_id"] firstObject];
+        for (NSString *header in table.headers) {
+            [object setValue:row[header] forKeyPath:header];
+        }
+    }
+    
+    [self.managedObjectContext save:nil];
+    
+    [userDefaults setObject:newSeedIDs forKey:kNTYPopulatorSeedIDsKey];
+}
+
+- (void)unsafelyRunWithEntityName:(NSString *)entityName CSVTable:(NTYCSVTable *)table
+{
+    [self deleteAllObjectsForEntityForName:entityName];
+    
+    for (NSDictionary *row in table.rows) {
+        NSManagedObject *object = [NSEntityDescription insertNewObjectForEntityForName:entityName inManagedObjectContext:self.managedObjectContext];
+        for (NSString *header in table.headers) {
+            [object setValue:row[header] forKey:header];
+        }
+    }
+    
+    [self.managedObjectContext save:nil];
 }
 
 - (void)deleteAllObjectsForEntityForName:(NSString *)entityName

@@ -10,8 +10,9 @@
 #import "NTYTableViewController.h"
 #import "NTYAppDelegate.h"
 
-@interface NTYTableViewController ()
+@interface NTYTableViewController () <NSFetchedResultsControllerDelegate>
 @property (nonatomic) NSFetchedResultsController *fetchedResultsController;
+- (IBAction)insertNewObject:(id)sender;
 @end
 
 @implementation NTYTableViewController
@@ -51,6 +52,7 @@
     request.sortDescriptors = @[sortDescriptor];
     
     self.fetchedResultsController = [[NSFetchedResultsController alloc] initWithFetchRequest:request managedObjectContext:managedObjectContext sectionNameKeyPath:nil cacheName:nil];
+    self.fetchedResultsController.delegate = self;
     
     NSError *error = nil;
     if (![self.fetchedResultsController performFetch:&error]) {
@@ -59,6 +61,18 @@
     }
     
     return self.fetchedResultsController;
+}
+
+- (IBAction)insertNewObject:(id)sender
+{
+    NTYAppDelegate *appDelegate = [[UIApplication sharedApplication] delegate];
+    NSManagedObjectContext *managedObjectContext = appDelegate.managedObjectContext;
+    
+    NSManagedObject *newObject = [NSEntityDescription insertNewObjectForEntityForName:@"User" inManagedObjectContext:managedObjectContext];
+    [newObject setValue:@"New user" forKey:@"name"];
+    [newObject setValue:@20 forKey:@"age"];
+    
+    [managedObjectContext save:nil];
 }
 
 #pragma mark - UITableViewDataSource
@@ -83,6 +97,19 @@
     cell.detailTextLabel.text = [NSString stringWithFormat:@"%@", [object valueForKey:@"age"]];
     
     return cell;
+}
+
+#pragma mark - NSFetchedResultsControllerDelegate
+
+- (void)controller:(NSFetchedResultsController *)controller didChangeObject:(id)anObject atIndexPath:(NSIndexPath *)indexPath forChangeType:(NSFetchedResultsChangeType)type newIndexPath:(NSIndexPath *)newIndexPath
+{
+    switch (type) {
+        case NSFetchedResultsChangeInsert:
+            [self.tableView insertRowsAtIndexPaths:@[newIndexPath] withRowAnimation:UITableViewRowAnimationFade];
+            break;
+        default:
+            break;
+    }
 }
 
 @end
