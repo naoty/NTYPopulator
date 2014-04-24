@@ -32,9 +32,9 @@ The populator stores the modification date of each seed files on `NSUserDefaults
 
 ### Safety
 
-By default, when the populator populates data, it will **delete all data and insert again**. So, if your application inserts new data after populating seed data, new data will be deleted when populating.
+By default, when the populator populates data, it will **delete all data and insert again**. So, data inserted after populating will be also deleted.
 
-In order to populate or delete only updated data, you need to add a special column named `seed_id`. The values of the column must be unique. The populator checks `seed_id` to update, insert or delete data.
+In order to keep these data, you should add a column `seed_id`. This column values identify which row should be updated, inserted or deleted.
 
 ```csv
 seed_id,name,age
